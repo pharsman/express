@@ -1,10 +1,31 @@
 import express from "express";
 
 const app = express();
+const PORT = process.env.PORT || 3700;
 
 app.use(express.json());
 
-const PORT = process.env.PORT || 3700;
+const loggingMiddleWare = (request, response, next) => {
+  console.log(`${request.method} - ${request.url}`);
+  next();
+};
+
+const resolveIndexByUserID = (request, response, next) => {
+  const {
+    params: { id },
+  } = request;
+
+  const parsedID = +id;
+  if (isNaN(parsedID)) {
+    return response.sendStatus(400);
+  }
+  const findUserIndex = mockUsers.findIndex((user) => user.id === parsedID);
+  if (findUserIndex === -1) {
+    return response.sendStatus(404);
+  }
+  request.findUserIndex = findUserIndex;
+  next();
+};
 
 const mockUsers = [
   { id: 1, username: "anson", displayname: "Anson" },
@@ -15,6 +36,10 @@ const mockUsers = [
   { id: 6, username: "henry", displayname: "Henry" },
   { id: 7, username: "marilyn", displayname: "Marilyn" },
 ];
+
+app.listen(PORT, () => {
+  console.log(`Running on Port ${PORT}`);
+});
 
 const FilterUsers = (users, searchString) => {
   const filteredUsers = users.filter((user) => {
@@ -32,12 +57,26 @@ const FilterUsers = (users, searchString) => {
   return filteredUsers;
 };
 
-app.get("/", (request, response) => {
-  response.status(201).send({ msg: "Hello World" });
-});
+app.get(
+  "/",
+  (request, response, next) => {
+    console.log("Base URL 1");
+    next();
+  },
+  (request, response, next) => {
+    console.log("Base URL 2");
+    next();
+  },
+  (request, response, next) => {
+    console.log("Base URL 3");
+    next();
+  },
+  (request, response) => {
+    response.status(201).send({ msg: "Hello World" });
+  }
+);
 
 app.get("/api/users", (request, response) => {
-  console.log(request.query);
   const {
     query: { filter },
   } = request;
@@ -53,23 +92,15 @@ app.get("/api/users", (request, response) => {
 });
 
 app.post("/api/users", (request, response) => {
-  console.log(request.body);
   const { body } = request;
   const newUser = { id: mockUsers[mockUsers.length - 1].id + 1, ...body };
   mockUsers.push(newUser);
   return response.status(201).send(newUser);
 });
 
-app.get("/api/users/:id", (request, response) => {
-  console.log(request.params);
-
-  const ParsedID = +request.params.id;
-  const findUser = mockUsers.find((user) => user.id === ParsedID);
-
-  if (isNaN(ParsedID)) {
-    return response.status(400).send({ msg: "Bad Request, Invalid ID" });
-  }
-
+app.get("/api/users/:id", resolveIndexByUserID, (request, response) => {
+  const { findUserIndex } = request;
+  const findUser = mockUsers[findUserIndex];
   if (!findUser) {
     return response.sendStatus(404);
   }
@@ -77,31 +108,24 @@ app.get("/api/users/:id", (request, response) => {
   return response.send(findUser);
 });
 
-app.put("/api/users/:id", (request, response) => {
-  const {
-    body,
-    params: { id },
-  } = request;
+app.put("/api/users/:id", resolveIndexByUserID, (request, response) => {
+  const { body, findUserIndex } = request;
 
-  const parsedID = +id;
-  if (isNaN(parsedID)) {
-    return response.sendStatus(400);
-  }
-
-  const findUserIndex = mockUsers.findIndex((user) => user.id === parsedID);
-
-  if (findUserIndex === -1) {
-    return response.sendStatus(404);
-  }
-
-  mockUsers[findUserIndex] = { id: parsedID, ...body };
+  mockUsers[findUserIndex] = { id: mockUsers[findUserIndex].id, ...body };
   return response.sendStatus(200);
 });
 
-app.get("/api/products", (request, response) => {
-  response.send([{ id: 123, name: "chicken breast", price: 12.99 }]);
+app.patch("/api/users/:id", resolveIndexByUserID, (request, response) => {
+  const { body, findUserIndex } = request;
+
+  mockUsers[findUserIndex] = { ...mockUsers[findUserIndex], ...body };
+
+  return response.sendStatus(200);
 });
 
-app.listen(PORT, () => {
-  console.log(`Running on Port ${PORT}`);
+app.delete("/api/users/:id", resolveIndexByUserID, (request, response) => {
+  const { findUserIndex } = request;
+
+  mockUsers.splice(findUserIndex, 1);
+  return response.sendStatus(200);
 });
