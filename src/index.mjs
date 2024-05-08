@@ -1,4 +1,5 @@
 import express from "express";
+import { query, validationResult, body, matchedData } from "express-validator";
 
 const app = express();
 const PORT = process.env.PORT || 3700;
@@ -76,27 +77,61 @@ app.get(
   }
 );
 
-app.get("/api/users", (request, response) => {
-  const {
-    query: { filter },
-  } = request;
+app.get(
+  "/api/users",
+  query("filter")
+    .isString()
+    .notEmpty()
+    .withMessage("Must not be empty")
+    .isLength({ min: 3, max: 10 })
+    .withMessage("Must be at least 3-10 characters"),
+  (request, response) => {
+    const {
+      query: { filter },
+    } = request;
 
-  // when filter and value are undefined
-  if (!filter) {
-    return response.send(mockUsers);
+    const result = validationResult(request);
+    console.log(result);
+    // when filter and value are undefined
+    if (!filter) {
+      return response.send(mockUsers);
+    }
+
+    if (filter) {
+      return response.send(FilterUsers(mockUsers, filter));
+    }
   }
+);
 
-  if (filter) {
-    return response.send(FilterUsers(mockUsers, filter));
+app.post(
+  "/api/users",
+  [
+    body("username")
+      .notEmpty()
+      .withMessage("Username cannot be empty")
+      .isLength({ min: 4, max: 32 })
+      .withMessage(
+        "UserName must be at least 5 characters with a max of 32 characters"
+      )
+      .isString()
+      .withMessage("Username must be String"),
+    body("displayname").notEmpty(),
+  ],
+
+  (request, response) => {
+    const result = validationResult(request);
+
+    const data = matchedData(request);
+
+    if (!result.isEmpty()) {
+      return response.status(400).send({ errors: result.array() });
+    }
+
+    const newUser = { id: mockUsers[mockUsers.length - 1].id + 1, ...data };
+    mockUsers.push(newUser);
+    return response.status(201).send(newUser);
   }
-});
-
-app.post("/api/users", (request, response) => {
-  const { body } = request;
-  const newUser = { id: mockUsers[mockUsers.length - 1].id + 1, ...body };
-  mockUsers.push(newUser);
-  return response.status(201).send(newUser);
-});
+);
 
 app.get("/api/users/:id", resolveIndexByUserID, (request, response) => {
   const { findUserIndex } = request;
