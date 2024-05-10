@@ -24,9 +24,16 @@ router.get(
     const {
       query: { filter },
     } = request;
-
+    console.log(request.session.id);
+    request.sessionStore.get(request.session.id, (err, sessionData) => {
+      if (err) {
+        console.log(err);
+        throw err;
+      }
+      console.log(sessionData);
+    });
     const result = validationResult(request);
-    console.log(result);
+    // console.log(result);
 
     // when filter and value are undefined
     if (!filter) {
