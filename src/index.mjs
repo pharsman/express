@@ -2,11 +2,17 @@ import express, { response } from "express";
 import routes from "./routes/index.mjs";
 import cookieParser from "cookie-parser";
 import session from "express-session";
-import { mockUsers } from "./constants/mockUsers.mjs";
 import passport from "passport";
+import mongoose from "mongoose";
+
 import "./strategies/local-strategy.mjs";
 
 const app = express();
+
+mongoose
+  .connect("mongodb://localhost/express_tutorial")
+  .then(() => console.log("Connected to Database"))
+  .catch((err) => console.log(err));
 
 app.use(express.json());
 app.use(cookieParser("helloworld"));
